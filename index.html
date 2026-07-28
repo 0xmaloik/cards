@@ -489,6 +489,31 @@
     return resp.json();
   }
 
+  // poe.ninja's API doesn't send CORS headers for third-party origins, so a
+  // direct browser fetch to it will fail from any site that isn't poe.ninja
+  // itself. Fall back to public CORS proxies that fetch it server-side and
+  // re-add the header. Tried in order; first one that works wins.
+  const CORS_PROXIES = [
+    (url) => url, // try direct first, in case a browser extension or future CORS change allows it
+    (url) => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
+    (url) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+  ];
+
+  async function fetchJsonWithFallback(url, label){
+    let lastErr;
+    for(let i = 0; i < CORS_PROXIES.length; i++){
+      const proxied = CORS_PROXIES[i](url);
+      try{
+        const data = await fetchJson(proxied);
+        if(i > 0) console.info(`${label}: direct fetch was blocked, succeeded via proxy #${i}`);
+        return data;
+      }catch(err){
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  }
+
   function buildAreaTable(cards, ninjaPrices){
     const areas = {};
     const unpriced = [];
@@ -669,15 +694,15 @@
         cards = manualCards;
       }else{
         setStatus('Fetching cards.json from GitHub...', null);
-        cards = await fetchJson(CARDS_URL);
+        cards = await fetchJsonWithFallback(CARDS_URL, 'cards.json');
       }
 
       if(manualNinja){
         setStatus('Using manually-loaded poe.ninja data...', null);
         ninjaLines = manualNinja.lines || manualNinja;
       }else{
-        setStatus(`Fetching poe.ninja divination card prices for "${league}"...`, null);
-        const ninjaData = await fetchJson(ninjaUrl(league));
+        setStatus(`Fetching poe.ninja divination card prices for "${league}" (poe.ninja usually needs a CORS proxy, trying that automatically)...`, null);
+        const ninjaData = await fetchJsonWithFallback(ninjaUrl(league), 'poe.ninja');
         ninjaLines = ninjaData.lines || [];
       }
 
@@ -701,8 +726,9 @@
     }catch(err){
       console.error(err);
       setStatus(
-        'Fetch failed: ' + err.message + '. This is usually the browser blocking a cross-origin request. ' +
-        'Open the "Manual data load" section below, download the two files via the links there, and load them in.',
+        'Fetch failed even after trying CORS proxies (' + err.message + '). ' +
+        'The proxies may be rate-limited or temporarily down. Open the "Manual data load" section below, ' +
+        'download the two files via the links there, and load them in instead.',
         'err'
       );
     }finally{
