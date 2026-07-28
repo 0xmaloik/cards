@@ -46,8 +46,6 @@
     padding: 40px 24px 80px;
   }
 
-  /* ---------- Hero / controls ---------- */
-
   .hero{
     border: 1px solid var(--border);
     border-radius: 14px;
@@ -88,7 +86,7 @@
 
   .lede{
     color: var(--text-dim);
-    max-width: 620px;
+    max-width: 640px;
     margin: 0 0 26px;
     font-size: 14.5px;
   }
@@ -124,7 +122,6 @@
     transition: border-color .15s ease;
   }
   .field input:focus{ border-color: var(--gold-dim); }
-  .field.wide input{ width: 220px; }
 
   button.primary{
     background: linear-gradient(180deg, #e2c15a, var(--gold));
@@ -165,8 +162,6 @@
   .status.err{ color: var(--red); }
   .status.ok{ color: var(--teal); }
 
-  /* ---------- Advanced / manual upload ---------- */
-
   details.advanced{
     margin-top: 20px;
     border-top: 1px dashed var(--border);
@@ -200,8 +195,6 @@
   .manual-box input[type=file]{
     font-size: 12px; color: var(--text-dim); width:100%;
   }
-
-  /* ---------- Results ---------- */
 
   .results{ margin-top: 28px; }
 
@@ -263,11 +256,7 @@
 
   .rank-cell{ font-family: var(--font-mono); color: var(--text-faint); width: 34px; }
 
-  .area-name{
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--text);
-  }
+  .area-name{ font-size: 13.5px; color: var(--text); }
   .area-name .chevron{
     display:inline-block; margin-right:8px; color: var(--gold-dim);
     transition: transform .15s ease; font-size: 10px;
@@ -278,6 +267,7 @@
   .value-cell .unit{ color: var(--text-faint); font-weight:400; font-size:11px; margin-left:2px; }
 
   .count-cell{ font-family: var(--font-mono); color: var(--text-dim); text-align:right; width:70px; }
+  .count-cell .warn{ color: var(--red); cursor: help; }
 
   .composition{
     display:flex; height:8px; border-radius:4px; overflow:hidden;
@@ -299,15 +289,17 @@
   .detail-table td{
     padding:6px 8px; font-size:12.5px; border-bottom:1px solid rgba(56,45,33,0.3);
   }
+  .detail-table tr.unknown-weight td{ opacity: .6; }
   .detail-table td.name{ font-family: var(--font-body); color: var(--text); }
   .detail-table td.num{ font-family: var(--font-mono); color: var(--text-dim); text-align:right; }
   .detail-table td.price{ font-family: var(--font-mono); color: var(--teal); text-align:right; }
   .src-tag{
     font-family: var(--font-mono); font-size:9.5px; padding:1px 5px; border-radius:4px;
-    margin-left:6px; letter-spacing:.03em;
+    margin-left:6px; letter-spacing:.03em; white-space:nowrap;
   }
   .src-tag.ninja{ background: rgba(73,198,176,0.12); color: var(--teal); }
   .src-tag.cards{ background: rgba(155,127,212,0.12); color: var(--purple); }
+  .src-tag.unknown{ background: rgba(209,97,95,0.12); color: var(--red); }
 
   .empty{
     text-align:center; padding: 60px 20px; color: var(--text-faint); font-family: var(--font-mono); font-size:13px;
@@ -343,16 +335,13 @@
     <div class="eyebrow"><span>Area Ledger</span><span class="rule"></span><span id="dateTag"></span></div>
     <h1>Which areas pay the best, per card drop?</h1>
     <p class="lede">
-      Pulls every area &rarr; card mapping from <code>cards.json</code> (deathbeam/maps-of-exile) and
-      live prices from poe.ninja, then ranks areas by the weight-normalized average value of the
-      divination cards that can drop there: &Sigma;(weight&times;price) &divide; &Sigma;weight.
+      Loads <code>cards.json</code> (deathbeam/maps-of-exile card &rarr; area &rarr; weight data) and
+      <code>overview.json</code> (poe.ninja divination card prices) directly from this repo, matches cards
+      to prices by their <code>id</code>, and ranks areas by the weight-normalized average value of the cards
+      that can drop there: &Sigma;(weight&times;price) &divide; &Sigma;weight.
     </p>
 
     <div class="controls">
-      <div class="field">
-        <label for="league">League</label>
-        <input id="league" type="text" value="Allflame" spellcheck="false">
-      </div>
       <div class="field">
         <label for="topN">Show top</label>
         <input id="topN" type="number" value="30" min="1" max="500">
@@ -361,31 +350,23 @@
         <label for="minWeight">Min weight pool</label>
         <input id="minWeight" type="number" value="0" min="0">
       </div>
-      <button class="primary" id="runBtn">Fetch &amp; rank</button>
+      <button class="primary" id="runBtn">Reload &amp; rank</button>
       <button class="ghost" id="csvBtn" style="display:none;">Download CSV</button>
     </div>
 
     <div class="status" id="statusLine"></div>
 
     <details class="advanced">
-      <summary>Manual data load (use this if automatic fetching is blocked by your browser)</summary>
+      <summary>Manual override (use this if the bundled cards.json / overview.json fail to load)</summary>
       <div class="manual-grid">
         <div class="manual-box">
           <h4>cards.json</h4>
-          <p>
-            If the auto-fetch fails, download it yourself from
-            <a href="https://raw.githubusercontent.com/deathbeam/maps-of-exile/main/site/src/data/cards.json" target="_blank" rel="noopener">this link</a>
-            (save as .json) and load it here.
-          </p>
+          <p>Load a local copy instead of the one bundled next to this page.</p>
           <input type="file" id="cardsFile" accept="application/json">
         </div>
         <div class="manual-box">
-          <h4>poe.ninja divination card prices</h4>
-          <p>
-            Or open
-            <a href="#" id="ninjaLink" target="_blank" rel="noopener">this API URL</a>
-            in a new tab, save the page as .json, and load it here.
-          </p>
+          <h4>overview.json</h4>
+          <p>Load a local copy of the poe.ninja price export instead of the bundled one.</p>
           <input type="file" id="ninjaFile" accept="application/json">
         </div>
       </div>
@@ -398,7 +379,7 @@
       <span class="results-count" id="resultsCount"></span>
     </div>
     <div class="filter-row">
-      <input type="text" id="filterInput" placeholder="Filter by area id or card name...">
+      <input type="text" id="filterInput" placeholder="Filter by area name or card name...">
     </div>
     <div style="overflow-x:auto;">
       <table id="resultsTable">
@@ -406,7 +387,7 @@
           <tr>
             <th style="width:34px;"></th>
             <th data-key="rank" class="sorted">Rank <span class="arrow">▾</span></th>
-            <th data-key="area">Area</th>
+            <th data-key="displayName">Area</th>
             <th data-key="avg_value">Avg value <span class="arrow"></span></th>
             <th data-key="num_cards" style="text-align:right;">Cards</th>
             <th>Composition</th>
@@ -422,21 +403,18 @@
     <h3>Read before you farm</h3>
     <ul>
       <li>This ranks the <strong>expected value of one divination-card drop</strong> in an area — not overall map profitability (no mob density, boss kill speed, sextants/scarabs, etc).</li>
-      <li>Areas are internal PoE area IDs (e.g. <code>MapWorldsGraveyard</code>), not the friendly in-game map names.</li>
-      <li>Cards with no listed area (monster/boss-only drops, Rogue Exile cards, etc.) are excluded since they aren't tied to a specific area.</li>
-      <li>poe.ninja prices are player listing prices, not guaranteed sale prices, and fluctuate — re-fetch for the latest snapshot.</li>
+      <li>Area display names have <code>MapWorlds</code> stripped for readability; areas whose internal id ends in <code>Unique</code> (boss-room variants of a map, tracked separately in the source data) are excluded entirely to avoid double-counting the same map.</li>
+      <li>Some cards in the source data have no recorded drop <strong>weight</strong> (their true rarity isn't publicly known/mined yet). Those cards still show up in an area's card list so counts stay accurate, but they're marked <span class="src-tag unknown">weight unknown</span> and excluded from the weighted-average math, since including them would require guessing a number.</li>
       <li>If a card has no live poe.ninja price, its price from <code>cards.json</code> is used instead (tagged <span class="src-tag cards">cards.json</span> in the breakdown below each row).</li>
+      <li>poe.ninja prices are a snapshot at whatever time <code>overview.json</code> was last exported — update that file in the repo to refresh.</li>
     </ul>
   </div>
 
-  <footer>Runs entirely in your browser · no server, no install · data from GitHub + poe.ninja</footer>
+  <footer>Runs entirely in your browser · data loaded from cards.json + overview.json in this repo</footer>
 </div>
 
 <script>
 (function(){
-  const CARDS_URL = "https://raw.githubusercontent.com/deathbeam/maps-of-exile/main/site/src/data/cards.json";
-  const ninjaUrl = (league) => `https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=${encodeURIComponent(league)}&type=DivinationCard`;
-
   const $ = (sel) => document.querySelector(sel);
   const statusLine = $('#statusLine');
   const runBtn = $('#runBtn');
@@ -448,21 +426,15 @@
   const filterInput = $('#filterInput');
 
   let manualCards = null;
-  let manualNinja = null;
+  let manualOverview = null;
   let lastRanked = [];
   let sortKey = 'rank';
   let sortDir = 1;
 
   $('#dateTag').textContent = new Date().toISOString().slice(0,10);
 
-  function updateNinjaLink(){
-    $('#ninjaLink').href = ninjaUrl($('#league').value.trim() || 'Allflame');
-  }
-  $('#league').addEventListener('input', updateNinjaLink);
-  updateNinjaLink();
-
-  $('#cardsFile').addEventListener('change', (e) => readFile(e, (json) => { manualCards = json; setStatus('Loaded cards.json from file (' + json.length + ' cards).', 'ok'); }));
-  $('#ninjaFile').addEventListener('change', (e) => readFile(e, (json) => { manualNinja = json; setStatus('Loaded poe.ninja data from file.', 'ok'); }));
+  $('#cardsFile').addEventListener('change', (e) => readFile(e, (json) => { manualCards = json; setStatus('Loaded cards.json from file (' + json.length + ' cards). Click "Reload & rank" to apply.', 'ok'); }));
+  $('#ninjaFile').addEventListener('change', (e) => readFile(e, (json) => { manualOverview = json; setStatus('Loaded overview.json from file. Click "Reload & rank" to apply.', 'ok'); }));
 
   function readFile(evt, cb){
     const file = evt.target.files[0];
@@ -484,55 +456,47 @@
   }
 
   async function fetchJson(url){
-    const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    // cache-bust so a re-run after editing the files in the repo picks up changes
+    const resp = await fetch(url + '?_=' + Date.now(), { headers: { 'Accept': 'application/json' } });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status + ' fetching ' + url);
     return resp.json();
   }
 
-  // poe.ninja's API doesn't send CORS headers for third-party origins, so a
-  // direct browser fetch to it will fail from any site that isn't poe.ninja
-  // itself. Fall back to public CORS proxies that fetch it server-side and
-  // re-add the header. Tried in order; first one that works wins.
-  const CORS_PROXIES = [
-    (url) => url, // try direct first, in case a browser extension or future CORS change allows it
-    (url) => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
-    (url) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-  ];
-
-  async function fetchJsonWithFallback(url, label){
-    let lastErr;
-    for(let i = 0; i < CORS_PROXIES.length; i++){
-      const proxied = CORS_PROXIES[i](url);
-      try{
-        const data = await fetchJson(proxied);
-        if(i > 0) console.info(`${label}: direct fetch was blocked, succeeded via proxy #${i}`);
-        return data;
-      }catch(err){
-        lastErr = err;
+  // overview.json shape: items[] maps id -> name (unused here since cards.json
+  // already has names), lines[] maps id -> primaryValue (chaos value)
+  function buildPriceMap(overview){
+    const priceById = {};
+    if(overview && Array.isArray(overview.lines)){
+      for(const line of overview.lines){
+        if(line.id != null && line.primaryValue != null && !(line.id in priceById)){
+          priceById[line.id] = line.primaryValue;
+        }
       }
     }
-    throw lastErr;
+    return priceById;
   }
 
-  function buildAreaTable(cards, ninjaPrices){
+  function buildAreaTable(cards, priceById){
     const areas = {};
     const unpriced = [];
 
     for(const card of cards){
-      const areaIds = (card.drop && card.drop.areas) || [];
-      const weight = card.weight;
-      if(!areaIds.length || weight == null) continue;
+      const rawAreas = (card.drop && card.drop.areas) || [];
+      // drop any area whose id ends in "Unique" (the boss-room variant of
+      // the same map, tracked separately) so the map isn't double-counted
+      const areaIds = rawAreas.filter(a => !a.endsWith('Unique'));
+      if(!areaIds.length) continue;
 
-      let price = ninjaPrices[card.name];
+      let price = priceById[card.id];
       let source = 'ninja';
-      if(price == null){
-        price = card.price;
-        source = 'cards';
-      }
-      if(price == null){
-        unpriced.push(card.name);
-        continue;
-      }
+      if(price == null){ price = card.price; source = 'cards'; }
+      if(price == null){ unpriced.push(card.name); continue; }
+
+      // weight can be missing (null) in the source data for a small number
+      // of cards whose true drop weight isn't publicly known. Keep the
+      // card visible rather than silently dropping it, but never fabricate
+      // a number for it.
+      const weight = (card.weight == null) ? null : card.weight;
 
       for(const areaId of areaIds){
         if(!areas[areaId]) areas[areaId] = [];
@@ -546,14 +510,21 @@
     const ranked = [];
     for(const areaId in areas){
       const list = areas[areaId];
-      const totalWeight = list.reduce((s,c) => s + c.weight, 0);
+      const weighted = list.filter(c => c.weight != null);
+      const totalWeight = weighted.reduce((s,c) => s + c.weight, 0);
       if(totalWeight <= 0 || totalWeight < minWeightSum) continue;
-      const avgValue = list.reduce((s,c) => s + c.weight * c.price, 0) / totalWeight;
-      const sortedCards = [...list].sort((a,b) => (b.weight*b.price) - (a.weight*a.price));
+      const avgValue = weighted.reduce((s,c) => s + c.weight * c.price, 0) / totalWeight;
+      const sortedCards = [...list].sort((a,b) => {
+        const av = (a.weight ?? 0) * a.price;
+        const bv = (b.weight ?? 0) * b.price;
+        return bv - av;
+      });
       ranked.push({
         area: areaId,
+        displayName: areaId.replace(/^MapWorlds/, ''),
         avg_value: avgValue,
         num_cards: list.length,
+        unknown_weight_count: list.length - weighted.length,
         total_weight: totalWeight,
         cards: sortedCards
       });
@@ -564,8 +535,9 @@
   }
 
   function compositionSegments(cards){
-    // top 4 cards' share of (weight*price), rest bucketed as "other"
-    const values = cards.map(c => c.weight * c.price);
+    // top 4 cards' share of (weight*price); unknown-weight cards contribute
+    // 0 here since we can't weight them, so they naturally sink into "other"
+    const values = cards.map(c => (c.weight ?? 0) * c.price);
     const total = values.reduce((a,b)=>a+b, 0) || 1;
     const palette = ['#d4af37', '#49c6b0', '#9b7fd4', '#d1615f'];
     const top = cards.slice(0,4).map((c,i) => ({ pct: (values[i]/total)*100, color: palette[i] }));
@@ -578,7 +550,6 @@
     lastRanked = ranked;
     resultsBody.innerHTML = '';
     resultsCount.textContent = ranked.length + ' areas';
-    resultsSection.style.display = ranked.length ? '' : '';
 
     const filterVal = filterInput.value.trim().toLowerCase();
 
@@ -596,6 +567,7 @@
     for(const r of sorted){
       if(shown >= topN) break;
       const matchesFilter = !filterVal ||
+        r.displayName.toLowerCase().includes(filterVal) ||
         r.area.toLowerCase().includes(filterVal) ||
         r.cards.some(c => c.name.toLowerCase().includes(filterVal));
       if(!matchesFilter) continue;
@@ -608,11 +580,15 @@
       const comp = compositionSegments(r.cards);
       const compHtml = comp.map(s => `<span style="width:${s.pct}%;background:${s.color};"></span>`).join('');
 
+      const countHtml = r.unknown_weight_count > 0
+        ? `${r.num_cards} <span class="warn" title="${r.unknown_weight_count} card(s) with unknown weight, excluded from the average">*</span>`
+        : `${r.num_cards}`;
+
       tr.innerHTML = `
         <td class="rank-cell">${r.rank}</td>
-        <td class="area-name"><span class="chevron">▶</span>${escapeHtml(r.area)}</td>
+        <td class="area-name"><span class="chevron">▶</span>${escapeHtml(r.displayName)}</td>
         <td class="value-cell">${r.avg_value.toFixed(2)}<span class="unit">c</span></td>
-        <td class="count-cell">${r.num_cards}</td>
+        <td class="count-cell">${countHtml}</td>
         <td><div class="composition">${compHtml}</div></td>
       `;
 
@@ -635,12 +611,18 @@
   }
 
   function buildDetailTable(cards){
-    const rows = cards.map(c => `
-      <tr>
-        <td class="name">${escapeHtml(c.name)}<span class="src-tag ${c.source === 'ninja' ? 'ninja' : 'cards'}">${c.source === 'ninja' ? 'poe.ninja' : 'cards.json'}</span></td>
-        <td class="num">${c.weight.toFixed(1)}</td>
+    const rows = cards.map(c => {
+      const isUnknown = c.weight == null;
+      const srcTag = isUnknown
+        ? `<span class="src-tag unknown">weight unknown</span>`
+        : `<span class="src-tag ${c.source === 'ninja' ? 'ninja' : 'cards'}">${c.source === 'ninja' ? 'poe.ninja' : 'cards.json'}</span>`;
+      return `
+      <tr class="${isUnknown ? 'unknown-weight' : ''}">
+        <td class="name">${escapeHtml(c.name)}${srcTag}</td>
+        <td class="num">${isUnknown ? '?' : c.weight.toFixed(1)}</td>
         <td class="price">${c.price.toFixed(2)}c</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     return `
       <table class="detail-table">
         <thead><tr><th>Card</th><th style="text-align:right;">Weight</th><th style="text-align:right;">Price</th></tr></thead>
@@ -665,12 +647,14 @@
   });
 
   filterInput.addEventListener('input', () => renderTable(lastRanked));
+  $('#topN').addEventListener('change', () => renderTable(lastRanked));
+  $('#minWeight').addEventListener('change', run);
 
   csvBtn.addEventListener('click', () => {
-    const header = ['rank','area','avg_value_chaos','num_cards','total_weight'];
+    const header = ['rank','area','avg_value_chaos','num_cards','unknown_weight_cards','total_weight'];
     const lines = [header.join(',')];
     for(const r of lastRanked){
-      lines.push([r.rank, r.area, r.avg_value.toFixed(4), r.num_cards, r.total_weight.toFixed(2)].join(','));
+      lines.push([r.rank, r.displayName, r.avg_value.toFixed(4), r.num_cards, r.unknown_weight_count, r.total_weight.toFixed(2)].join(','));
     }
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -683,52 +667,43 @@
 
   async function run(){
     runBtn.disabled = true;
-    const league = $('#league').value.trim() || 'Allflame';
     const minWeight = parseFloat($('#minWeight').value) || 0;
 
     try{
-      let cards, ninjaLines;
+      let cards, overview;
 
       if(manualCards){
         setStatus('Using manually-loaded cards.json...', null);
         cards = manualCards;
       }else{
-        setStatus('Fetching cards.json from GitHub...', null);
-        cards = await fetchJsonWithFallback(CARDS_URL, 'cards.json');
+        setStatus('Loading cards.json...', null);
+        cards = await fetchJson('cards.json');
       }
 
-      if(manualNinja){
-        setStatus('Using manually-loaded poe.ninja data...', null);
-        ninjaLines = manualNinja.lines || manualNinja;
+      if(manualOverview){
+        setStatus('Using manually-loaded overview.json...', null);
+        overview = manualOverview;
       }else{
-        setStatus(`Fetching poe.ninja divination card prices for "${league}" (poe.ninja usually needs a CORS proxy, trying that automatically)...`, null);
-        const ninjaData = await fetchJsonWithFallback(ninjaUrl(league), 'poe.ninja');
-        ninjaLines = ninjaData.lines || [];
+        setStatus('Loading overview.json...', null);
+        overview = await fetchJson('overview.json');
       }
 
-      const ninjaPrices = {};
-      for(const line of ninjaLines){
-        if(line.name != null && line.chaosValue != null && !(line.name in ninjaPrices)){
-          ninjaPrices[line.name] = line.chaosValue;
-        }
-      }
-
-      const { areas, unpriced } = buildAreaTable(cards, ninjaPrices);
+      const priceById = buildPriceMap(overview);
+      const { areas, unpriced } = buildAreaTable(cards, priceById);
       const ranked = rankAreas(areas, minWeight);
 
       renderTable(ranked);
       resultsSection.style.display = '';
 
-      let msg = `Done — ${cards.length} cards, ${Object.keys(ninjaPrices).length} priced from poe.ninja, ${ranked.length} areas ranked.`;
+      let msg = `Done — ${cards.length} cards, ${Object.keys(priceById).length} priced from overview.json, ${ranked.length} areas ranked.`;
       if(unpriced.length) msg += ` (${unpriced.length} cards had no price anywhere and were skipped.)`;
       setStatus(msg, 'ok');
 
     }catch(err){
       console.error(err);
       setStatus(
-        'Fetch failed even after trying CORS proxies (' + err.message + '). ' +
-        'The proxies may be rate-limited or temporarily down. Open the "Manual data load" section below, ' +
-        'download the two files via the links there, and load them in instead.',
+        'Failed to load data: ' + err.message + '. Make sure cards.json and overview.json are sitting next to ' +
+        'this HTML file in the same repo/folder, or use "Manual override" below to load them from disk.',
         'err'
       );
     }finally{
