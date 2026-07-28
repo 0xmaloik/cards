@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Area Ledger — Divination Card Value by Area</title>
+<style>
+  :root{
+    --bg: #14110d;
+    --panel: #1c1712;
+    --panel-alt: #241d16;
+    --border: #382d21;
+    --border-soft: #2a2219;
+    --text: #ece4d4;
+    --text-dim: #a89a83;
+    --text-faint: #6e6353;
+    --gold: #d4af37;
+    --gold-dim: #8a7228;
+    --teal: #49c6b0;
+    --purple: #9b7fd4;
+    --red: #d1615f;
+    --font-display: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, monospace;
+    --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 15% -10%, rgba(212,175,55,0.07), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(155,127,212,0.06), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  a { color: var(--teal); }
+
+  .wrap{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ---------- Hero / controls ---------- */
+
+  .hero{
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: linear-gradient(180deg, var(--panel-alt), var(--panel));
+    padding: 32px clamp(20px, 4vw, 40px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background: linear-gradient(120deg, transparent 40%, rgba(212,175,55,0.05) 50%, transparent 60%);
+    pointer-events:none;
+  }
+
+  .eyebrow{
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom: 14px;
+  }
+  .eyebrow .rule{ flex:1; height:1px; background: linear-gradient(90deg, var(--gold-dim), transparent); }
+
+  h1{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 40px);
+    margin: 0 0 10px;
+    letter-spacing: .01em;
+    color: #f4ecd9;
+  }
+
+  .lede{
+    color: var(--text-dim);
+    max-width: 620px;
+    margin: 0 0 26px;
+    font-size: 14.5px;
+  }
+  .lede code{ font-family: var(--font-mono); color: var(--teal); font-size: 13px; }
+
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:flex-end;
+  }
+
+  .field{
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .field label{
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color: var(--text-faint);
+  }
+  .field input{
+    background: #0f0c09;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 11px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    width: 140px;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  .field input:focus{ border-color: var(--gold-dim); }
+  .field.wide input{ width: 220px; }
+
+  button.primary{
+    background: linear-gradient(180deg, #e2c15a, var(--gold));
+    color: #201a0c;
+    border: none;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor:pointer;
+    transition: filter .15s ease, transform .1s ease;
+    white-space:nowrap;
+  }
+  button.primary:hover{ filter: brightness(1.08); }
+  button.primary:active{ transform: translateY(1px); }
+  button.primary:disabled{ opacity:.5; cursor:not-allowed; filter:none; }
+
+  button.ghost{
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--font-body);
+  }
+  button.ghost:hover{ border-color: var(--gold-dim); color: var(--text); }
+
+  .status{
+    margin-top: 18px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--text-faint);
+    min-height: 18px;
+  }
+  .status.err{ color: var(--red); }
+  .status.ok{ color: var(--teal); }
+
+  /* ---------- Advanced / manual upload ---------- */
+
+  details.advanced{
+    margin-top: 20px;
+    border-top: 1px dashed var(--border);
+    padding-top: 16px;
+  }
+  details.advanced summary{
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    letter-spacing:.04em;
+  }
+  .manual-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  @media (max-width: 700px){ .manual-grid{ grid-template-columns: 1fr; } }
+  .manual-box{
+    border:1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 14px;
+    background: rgba(0,0,0,.15);
+  }
+  .manual-box h4{
+    margin:0 0 6px; font-size:12.5px; font-family: var(--font-mono);
+    color: var(--text-dim); font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+  }
+  .manual-box p{ margin: 0 0 10px; font-size: 12px; color: var(--text-faint); }
+  .manual-box input[type=file]{
+    font-size: 12px; color: var(--text-dim); width:100%;
+  }
+
+  /* ---------- Results ---------- */
+
+  .results{ margin-top: 28px; }
+
+  .results-head{
+    display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .results-head h2{
+    font-family: var(--font-display);
+    font-size: 20px; margin: 0; color:#f4ecd9; font-weight:600;
+  }
+  .results-count{ font-family: var(--font-mono); font-size:12px; color: var(--text-faint); }
+
+  .filter-row{ display:flex; gap:10px; margin-bottom: 14px; }
+  .filter-row input{
+    flex:1;
+    background: #0f0c09;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    outline:none;
+  }
+  .filter-row input:focus{ border-color: var(--gold-dim); }
+
+  table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+
+  thead th{
+    text-align:left;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color: var(--text-faint);
+    padding: 0 10px 10px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  thead th:hover{ color: var(--gold); }
+  thead th.sorted{ color: var(--gold); }
+  thead th .arrow{ font-size:9px; margin-left:3px; opacity:.7; }
+
+  tbody tr.area-row{
+    cursor:pointer;
+    border-bottom: 1px solid var(--border-soft);
+    transition: background .12s ease;
+  }
+  tbody tr.area-row:hover{ background: rgba(212,175,55,0.05); }
+  tbody tr.area-row td{ padding: 12px 10px; vertical-align: middle; }
+
+  .rank-cell{ font-family: var(--font-mono); color: var(--text-faint); width: 34px; }
+
+  .area-name{
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+  .area-name .chevron{
+    display:inline-block; margin-right:8px; color: var(--gold-dim);
+    transition: transform .15s ease; font-size: 10px;
+  }
+  tr.expanded .chevron{ transform: rotate(90deg); }
+
+  .value-cell{ font-family: var(--font-mono); font-weight:700; color: var(--teal); white-space:nowrap; }
+  .value-cell .unit{ color: var(--text-faint); font-weight:400; font-size:11px; margin-left:2px; }
+
+  .count-cell{ font-family: var(--font-mono); color: var(--text-dim); text-align:right; width:70px; }
+
+  .composition{
+    display:flex; height:8px; border-radius:4px; overflow:hidden;
+    width: 140px; background: var(--border-soft);
+  }
+  .composition span{ display:block; height:100%; }
+
+  tr.detail-row{ display:none; }
+  tr.detail-row.open{ display: table-row; }
+  tr.detail-row td{
+    padding: 0 10px 16px 34px;
+    background: rgba(0,0,0,.15);
+  }
+  .detail-table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  .detail-table th{
+    text-align:left; font-family: var(--font-mono); font-size:10px; letter-spacing:.06em;
+    text-transform:uppercase; color: var(--text-faint); padding:6px 8px; border-bottom:1px solid var(--border-soft);
+  }
+  .detail-table td{
+    padding:6px 8px; font-size:12.5px; border-bottom:1px solid rgba(56,45,33,0.3);
+  }
+  .detail-table td.name{ font-family: var(--font-body); color: var(--text); }
+  .detail-table td.num{ font-family: var(--font-mono); color: var(--text-dim); text-align:right; }
+  .detail-table td.price{ font-family: var(--font-mono); color: var(--teal); text-align:right; }
+  .src-tag{
+    font-family: var(--font-mono); font-size:9.5px; padding:1px 5px; border-radius:4px;
+    margin-left:6px; letter-spacing:.03em;
+  }
+  .src-tag.ninja{ background: rgba(73,198,176,0.12); color: var(--teal); }
+  .src-tag.cards{ background: rgba(155,127,212,0.12); color: var(--purple); }
+
+  .empty{
+    text-align:center; padding: 60px 20px; color: var(--text-faint); font-family: var(--font-mono); font-size:13px;
+  }
+
+  .caveats{
+    margin-top: 34px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+  .caveats h3{
+    font-family: var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color: var(--text-dim); margin: 0 0 10px;
+  }
+  .caveats ul{ margin: 0; padding-left: 18px; }
+  .caveats li{ margin-bottom: 6px; }
+
+  footer{
+    margin-top: 30px; text-align:center; color: var(--text-faint); font-size:11.5px; font-family: var(--font-mono);
+  }
+
+  ::-webkit-scrollbar{ height:8px; width:8px; }
+  ::-webkit-scrollbar-thumb{ background: var(--border); border-radius:4px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow"><span>Area Ledger</span><span class="rule"></span><span id="dateTag"></span></div>
+    <h1>Which areas pay the best, per card drop?</h1>
+    <p class="lede">
+      Pulls every area &rarr; card mapping from <code>cards.json</code> (deathbeam/maps-of-exile) and
+      live prices from poe.ninja, then ranks areas by the weight-normalized average value of the
+      divination cards that can drop there: &Sigma;(weight&times;price) &divide; &Sigma;weight.
+    </p>
+
+    <div class="controls">
+      <div class="field">
+        <label for="league">League</label>
+        <input id="league" type="text" value="Allflame" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="topN">Show top</label>
+        <input id="topN" type="number" value="30" min="1" max="500">
+      </div>
+      <div class="field">
+        <label for="minWeight">Min weight pool</label>
+        <input id="minWeight" type="number" value="0" min="0">
+      </div>
+      <button class="primary" id="runBtn">Fetch &amp; rank</button>
+      <button class="ghost" id="csvBtn" style="display:none;">Download CSV</button>
+    </div>
+
+    <div class="status" id="statusLine"></div>
+
+    <details class="advanced">
+      <summary>Manual data load (use this if automatic fetching is blocked by your browser)</summary>
+      <div class="manual-grid">
+        <div class="manual-box">
+          <h4>cards.json</h4>
+          <p>
+            If the auto-fetch fails, download it yourself from
+            <a href="https://raw.githubusercontent.com/deathbeam/maps-of-exile/main/site/src/data/cards.json" target="_blank" rel="noopener">this link</a>
+            (save as .json) and load it here.
+          </p>
+          <input type="file" id="cardsFile" accept="application/json">
+        </div>
+        <div class="manual-box">
+          <h4>poe.ninja divination card prices</h4>
+          <p>
+            Or open
+            <a href="#" id="ninjaLink" target="_blank" rel="noopener">this API URL</a>
+            in a new tab, save the page as .json, and load it here.
+          </p>
+          <input type="file" id="ninjaFile" accept="application/json">
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="results" id="resultsSection" style="display:none;">
+    <div class="results-head">
+      <h2>Ranked areas</h2>
+      <span class="results-count" id="resultsCount"></span>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="filterInput" placeholder="Filter by area id or card name...">
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th style="width:34px;"></th>
+            <th data-key="rank" class="sorted">Rank <span class="arrow">▾</span></th>
+            <th data-key="area">Area</th>
+            <th data-key="avg_value">Avg value <span class="arrow"></span></th>
+            <th data-key="num_cards" style="text-align:right;">Cards</th>
+            <th>Composition</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty" style="display:none;">No areas match that filter.</div>
+  </div>
+
+  <div class="caveats">
+    <h3>Read before you farm</h3>
+    <ul>
+      <li>This ranks the <strong>expected value of one divination-card drop</strong> in an area — not overall map profitability (no mob density, boss kill speed, sextants/scarabs, etc).</li>
+      <li>Areas are internal PoE area IDs (e.g. <code>MapWorldsGraveyard</code>), not the friendly in-game map names.</li>
+      <li>Cards with no listed area (monster/boss-only drops, Rogue Exile cards, etc.) are excluded since they aren't tied to a specific area.</li>
+      <li>poe.ninja prices are player listing prices, not guaranteed sale prices, and fluctuate — re-fetch for the latest snapshot.</li>
+      <li>If a card has no live poe.ninja price, its price from <code>cards.json</code> is used instead (tagged <span class="src-tag cards">cards.json</span> in the breakdown below each row).</li>
+    </ul>
+  </div>
+
+  <footer>Runs entirely in your browser · no server, no install · data from GitHub + poe.ninja</footer>
+</div>
+
+<script>
+(function(){
+  const CARDS_URL = "https://raw.githubusercontent.com/deathbeam/maps-of-exile/main/site/src/data/cards.json";
+  const ninjaUrl = (league) => `https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=${encodeURIComponent(league)}&type=DivinationCard`;
+
+  const $ = (sel) => document.querySelector(sel);
+  const statusLine = $('#statusLine');
+  const runBtn = $('#runBtn');
+  const csvBtn = $('#csvBtn');
+  const resultsSection = $('#resultsSection');
+  const resultsBody = $('#resultsBody');
+  const resultsCount = $('#resultsCount');
+  const emptyState = $('#emptyState');
+  const filterInput = $('#filterInput');
+
+  let manualCards = null;
+  let manualNinja = null;
+  let lastRanked = [];
+  let sortKey = 'rank';
+  let sortDir = 1;
+
+  $('#dateTag').textContent = new Date().toISOString().slice(0,10);
+
+  function updateNinjaLink(){
+    $('#ninjaLink').href = ninjaUrl($('#league').value.trim() || 'Allflame');
+  }
+  $('#league').addEventListener('input', updateNinjaLink);
+  updateNinjaLink();
+
+  $('#cardsFile').addEventListener('change', (e) => readFile(e, (json) => { manualCards = json; setStatus('Loaded cards.json from file (' + json.length + ' cards).', 'ok'); }));
+  $('#ninjaFile').addEventListener('change', (e) => readFile(e, (json) => { manualNinja = json; setStatus('Loaded poe.ninja data from file.', 'ok'); }));
+
+  function readFile(evt, cb){
+    const file = evt.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        cb(JSON.parse(reader.result));
+      }catch(err){
+        setStatus('Could not parse that file as JSON: ' + err.message, 'err');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function setStatus(msg, cls){
+    statusLine.textContent = msg;
+    statusLine.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  async function fetchJson(url){
+    const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.json();
+  }
+
+  function buildAreaTable(cards, ninjaPrices){
+    const areas = {};
+    const unpriced = [];
+
+    for(const card of cards){
+      const areaIds = (card.drop && card.drop.areas) || [];
+      const weight = card.weight;
+      if(!areaIds.length || weight == null) continue;
+
+      let price = ninjaPrices[card.name];
+      let source = 'ninja';
+      if(price == null){
+        price = card.price;
+        source = 'cards';
+      }
+      if(price == null){
+        unpriced.push(card.name);
+        continue;
+      }
+
+      for(const areaId of areaIds){
+        if(!areas[areaId]) areas[areaId] = [];
+        areas[areaId].push({ id: card.id, name: card.name, weight, price, source });
+      }
+    }
+    return { areas, unpriced };
+  }
+
+  function rankAreas(areas, minWeightSum){
+    const ranked = [];
+    for(const areaId in areas){
+      const list = areas[areaId];
+      const totalWeight = list.reduce((s,c) => s + c.weight, 0);
+      if(totalWeight <= 0 || totalWeight < minWeightSum) continue;
+      const avgValue = list.reduce((s,c) => s + c.weight * c.price, 0) / totalWeight;
+      const sortedCards = [...list].sort((a,b) => (b.weight*b.price) - (a.weight*a.price));
+      ranked.push({
+        area: areaId,
+        avg_value: avgValue,
+        num_cards: list.length,
+        total_weight: totalWeight,
+        cards: sortedCards
+      });
+    }
+    ranked.sort((a,b) => b.avg_value - a.avg_value);
+    ranked.forEach((r,i) => r.rank = i+1);
+    return ranked;
+  }
+
+  function compositionSegments(cards){
+    // top 4 cards' share of (weight*price), rest bucketed as "other"
+    const values = cards.map(c => c.weight * c.price);
+    const total = values.reduce((a,b)=>a+b, 0) || 1;
+    const palette = ['#d4af37', '#49c6b0', '#9b7fd4', '#d1615f'];
+    const top = cards.slice(0,4).map((c,i) => ({ pct: (values[i]/total)*100, color: palette[i] }));
+    const usedPct = top.reduce((s,t)=>s+t.pct,0);
+    if(usedPct < 100) top.push({ pct: 100-usedPct, color: '#382d21' });
+    return top;
+  }
+
+  function renderTable(ranked){
+    lastRanked = ranked;
+    resultsBody.innerHTML = '';
+    resultsCount.textContent = ranked.length + ' areas';
+    resultsSection.style.display = ranked.length ? '' : '';
+
+    const filterVal = filterInput.value.trim().toLowerCase();
+
+    let sorted = [...ranked];
+    sorted.sort((a,b) => {
+      let av = a[sortKey], bv = b[sortKey];
+      if(typeof av === 'string') return sortDir * av.localeCompare(bv);
+      return sortDir * (av - bv);
+    });
+
+    const topN = parseInt($('#topN').value, 10) || 30;
+
+    let shown = 0;
+    let visibleRows = 0;
+    for(const r of sorted){
+      if(shown >= topN) break;
+      const matchesFilter = !filterVal ||
+        r.area.toLowerCase().includes(filterVal) ||
+        r.cards.some(c => c.name.toLowerCase().includes(filterVal));
+      if(!matchesFilter) continue;
+      shown++;
+      visibleRows++;
+
+      const tr = document.createElement('tr');
+      tr.className = 'area-row';
+
+      const comp = compositionSegments(r.cards);
+      const compHtml = comp.map(s => `<span style="width:${s.pct}%;background:${s.color};"></span>`).join('');
+
+      tr.innerHTML = `
+        <td class="rank-cell">${r.rank}</td>
+        <td class="area-name"><span class="chevron">▶</span>${escapeHtml(r.area)}</td>
+        <td class="value-cell">${r.avg_value.toFixed(2)}<span class="unit">c</span></td>
+        <td class="count-cell">${r.num_cards}</td>
+        <td><div class="composition">${compHtml}</div></td>
+      `;
+
+      const detailRow = document.createElement('tr');
+      detailRow.className = 'detail-row';
+      detailRow.innerHTML = `<td colspan="5">${buildDetailTable(r.cards)}</td>`;
+
+      tr.addEventListener('click', () => {
+        const willOpen = !detailRow.classList.contains('open');
+        detailRow.classList.toggle('open', willOpen);
+        tr.classList.toggle('expanded', willOpen);
+      });
+
+      resultsBody.appendChild(tr);
+      resultsBody.appendChild(detailRow);
+    }
+
+    emptyState.style.display = visibleRows ? 'none' : 'block';
+    csvBtn.style.display = ranked.length ? '' : 'none';
+  }
+
+  function buildDetailTable(cards){
+    const rows = cards.map(c => `
+      <tr>
+        <td class="name">${escapeHtml(c.name)}<span class="src-tag ${c.source === 'ninja' ? 'ninja' : 'cards'}">${c.source === 'ninja' ? 'poe.ninja' : 'cards.json'}</span></td>
+        <td class="num">${c.weight.toFixed(1)}</td>
+        <td class="price">${c.price.toFixed(2)}c</td>
+      </tr>`).join('');
+    return `
+      <table class="detail-table">
+        <thead><tr><th>Card</th><th style="text-align:right;">Weight</th><th style="text-align:right;">Price</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  document.querySelectorAll('thead th[data-key]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if(sortKey === key){ sortDir *= -1; } else { sortKey = key; sortDir = 1; }
+      document.querySelectorAll('thead th').forEach(h => { h.classList.remove('sorted'); h.querySelector('.arrow') && (h.querySelector('.arrow').textContent=''); });
+      th.classList.add('sorted');
+      const arrow = th.querySelector('.arrow');
+      if(arrow) arrow.textContent = sortDir === 1 ? '▾' : '▴';
+      renderTable(lastRanked);
+    });
+  });
+
+  filterInput.addEventListener('input', () => renderTable(lastRanked));
+
+  csvBtn.addEventListener('click', () => {
+    const header = ['rank','area','avg_value_chaos','num_cards','total_weight'];
+    const lines = [header.join(',')];
+    for(const r of lastRanked){
+      lines.push([r.rank, r.area, r.avg_value.toFixed(4), r.num_cards, r.total_weight.toFixed(2)].join(','));
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'area_values.csv';
+    a.click();
+  });
+
+  runBtn.addEventListener('click', run);
+
+  async function run(){
+    runBtn.disabled = true;
+    const league = $('#league').value.trim() || 'Allflame';
+    const minWeight = parseFloat($('#minWeight').value) || 0;
+
+    try{
+      let cards, ninjaLines;
+
+      if(manualCards){
+        setStatus('Using manually-loaded cards.json...', null);
+        cards = manualCards;
+      }else{
+        setStatus('Fetching cards.json from GitHub...', null);
+        cards = await fetchJson(CARDS_URL);
+      }
+
+      if(manualNinja){
+        setStatus('Using manually-loaded poe.ninja data...', null);
+        ninjaLines = manualNinja.lines || manualNinja;
+      }else{
+        setStatus(`Fetching poe.ninja divination card prices for "${league}"...`, null);
+        const ninjaData = await fetchJson(ninjaUrl(league));
+        ninjaLines = ninjaData.lines || [];
+      }
+
+      const ninjaPrices = {};
+      for(const line of ninjaLines){
+        if(line.name != null && line.chaosValue != null && !(line.name in ninjaPrices)){
+          ninjaPrices[line.name] = line.chaosValue;
+        }
+      }
+
+      const { areas, unpriced } = buildAreaTable(cards, ninjaPrices);
+      const ranked = rankAreas(areas, minWeight);
+
+      renderTable(ranked);
+      resultsSection.style.display = '';
+
+      let msg = `Done — ${cards.length} cards, ${Object.keys(ninjaPrices).length} priced from poe.ninja, ${ranked.length} areas ranked.`;
+      if(unpriced.length) msg += ` (${unpriced.length} cards had no price anywhere and were skipped.)`;
+      setStatus(msg, 'ok');
+
+    }catch(err){
+      console.error(err);
+      setStatus(
+        'Fetch failed: ' + err.message + '. This is usually the browser blocking a cross-origin request. ' +
+        'Open the "Manual data load" section below, download the two files via the links there, and load them in.',
+        'err'
+      );
+    }finally{
+      runBtn.disabled = false;
+    }
+  }
+
+  // auto-run on load
+  run();
+})();
+</script>
+
+</body>
+</html>
